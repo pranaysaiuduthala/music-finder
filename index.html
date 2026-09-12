@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music Finder — identify any song</title>
+<style>
+  :root{
+    --ink:#161512;
+    --paper:#EDE9E1;
+    --paper-dim:#c9c4b9;
+    --amber:#D9A441;
+    --amber-deep:#B3801E;
+    --groove:#2A2823;
+    --danger:#C4573F;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Georgia', 'Iowan Old Style', serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:32px 20px;
+  }
+
+  .app{
+    width:100%;
+    max-width:420px;
+  }
+
+  .masthead{
+    text-align:left;
+    margin-bottom:36px;
+  }
+
+  .masthead h1{
+    font-size:2.1rem;
+    font-weight:400;
+    letter-spacing:-0.01em;
+    margin:0 0 6px 0;
+    font-style:italic;
+  }
+
+  .masthead p{
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    font-size:0.85rem;
+    color:var(--paper-dim);
+    margin:0;
+    line-height:1.5;
+    max-width:320px;
+  }
+
+  /* --- key setup panel --- */
+  .keypanel{
+    background:var(--groove);
+    border-radius:10px;
+    padding:16px 18px;
+    margin-bottom:28px;
+    font-family:'Helvetica Neue', Arial, sans-serif;
+  }
+  .keypanel.saved{
+    display:none;
+  }
+  .keypanel label{
+    display:block;
+    font-size:0.78rem;
+    color:var(--paper-dim);
+    margin-bottom:8px;
+  }
+  .keypanel .row{
+    display:flex;
+    gap:8px;
+  }
+  .keypanel input{
+    flex:1;
+    background:var(--ink);
+    border:1px solid #3a372f;
+    border-radius:6px;
+    padding:10px 12px;
+    color:var(--paper);
+    font-size:0.85rem;
+    font-family:'Helvetica Neue', Arial, sans-serif;
+  }
+  .keypanel input:focus{
+    outline:none;
+    border-color:var(--amber);
+  }
+  .keypanel button{
+    background:var(--amber);
+    color:var(--ink);
+    border:none;
+    border-radius:6px;
+    padding:0 16px;
+    font-size:0.85rem;
+    font-weight:600;
+    cursor:pointer;
+    font-family:'Helvetica Neue', Arial, sans-serif;
+  }
+  .keypanel button:hover{ background:var(--amber-deep); }
+  .keypanel .hint{
+    margin-top:10px;
+    font-size:0.72rem;
+    color:#8a877e;
+  }
+  .keypanel .hint a{ color:var(--amber); }
+
+  .keystatus{
+    display:none;
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    font-size:0.75rem;
+    color:var(--paper-dim);
+    margin-bottom:28px;
+  }
+  .keystatus.show{ display:flex; align-items:center; justify-content:space-between; }
+  .keystatus button{
+    background:none;
+    border:none;
+    color:var(--amber);
+    font-size:0.75rem;
+    cursor:pointer;
+    text-decoration:underline;
+    font-family:inherit;
+    padding:0;
+  }
+
+  /* --- listening disc --- */
+  .stage{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px 0 8px 0;
+  }
+
+  .disc-wrap{
+    position:relative;
+    width:220px;
+    height:220px;
+    margin-bottom:28px;
+  }
+
+  .disc{
+    width:100%;
+    height:100%;
+    border-radius:50%;
+    background:
+      repeating-radial-gradient(circle at center, #1c1a16 0, #1c1a16 2px, #201e19 2px, #201e19 4px);
+    border:1px solid #3a372f;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:transform 0.4s ease;
+  }
+
+  .disc.spinning{
+    animation:spin 3s linear infinite;
+  }
+
+  @keyframes spin{
+    from{ transform:rotate(0deg); }
+    to{ transform:rotate(360deg); }
+  }
+
+  .disc-center{
+    width:64px;
+    height:64px;
+    border-radius:50%;
+    background:var(--amber);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 0 0 4px var(--ink), 0 0 0 5px #3a372f;
+  }
+
+  .disc-center svg{ width:26px; height:26px; }
+
+  .listen-btn{
+    position:absolute;
+    inset:0;
+    background:none;
+    border:none;
+    cursor:pointer;
+    border-radius:50%;
+  }
+  .listen-btn:disabled{ cursor:default; }
+
+  .status-line{
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    font-size:0.85rem;
+    color:var(--paper-dim);
+    text-align:center;
+    min-height:20px;
+    margin-bottom:6px;
+  }
+
+  .timer{
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    font-size:0.75rem;
+    color:var(--amber);
+    text-align:center;
+  }
+
+  /* --- result card --- */
+  .result{
+    display:none;
+    margin-top:8px;
+    background:var(--groove);
+    border-radius:12px;
+    padding:20px;
+    align-items:center;
+    gap:16px;
+  }
+  .result.show{ display:flex; }
+
+  .result img{
+    width:72px;
+    height:72px;
+    border-radius:6px;
+    object-fit:cover;
+    background:#3a372f;
+    flex-shrink:0;
+  }
+
+  .result .meta{ min-width:0; }
+  .result .title{
+    font-size:1.15rem;
+    font-style:italic;
+    margin:0 0 4px 0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .result .artist{
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    font-size:0.85rem;
+    color:var(--paper-dim);
+    margin:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .error{
+    display:none;
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    font-size:0.85rem;
+    color:var(--danger);
+    text-align:center;
+    margin-top:12px;
+    line-height:1.5;
+  }
+  .error.show{ display:block; }
+
+  /* --- history --- */
+  .history{
+    margin-top:36px;
+  }
+  .history h2{
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    font-size:0.75rem;
+    font-weight:600;
+    color:var(--paper-dim);
+    margin:0 0 12px 0;
+  }
+  .history ul{
+    list-style:none;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:1px;
+  }
+  .history li{
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    font-size:0.85rem;
+    padding:10px 2px;
+    border-bottom:1px solid var(--groove);
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .history li span:first-child{
+    color:var(--paper);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .history li span:last-child{
+    color:var(--paper-dim);
+    flex-shrink:0;
+  }
+  .history-empty{
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    font-size:0.8rem;
+    color:#5c5952;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="masthead">
+    <h1>Music Finder</h1>
+    <p>Hold your mic up to any speaker and I'll tell you what's playing.</p>
+  </div>
+
+  <!-- API key setup, shown until a key is saved -->
+  <div class="keypanel" id="keypanel">
+    <label for="apikey">Enter your access key to get started</label>
+    <div class="row">
+      <input type="text" id="apikey" placeholder="e.g. a1b2c3d4e5..." autocomplete="off">
+      <button id="savekey">Save</button>
+    </div>
+    <p class="hint">Get a free key at <a href="https://audd.io" target="_blank">audd.io</a> — no card required.</p>
+  </div>
+
+  <div class="keystatus" id="keystatus">
+    <span>Access key saved</span>
+    <button id="changekey">change</button>
+  </div>
+
+  <div class="stage">
+    <div class="disc-wrap">
+      <div class="disc" id="disc">
+        <div class="disc-center">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 15a3 3 0 003-3V5a1 1 0 00-1.3-.95l-6 2A1 1 0 007 7v6.1a3 3 0 105 2.24V7.77l4-1.33V12a3 3 0 01-.3.06L15 12a3 3 0 00-3 3z" fill="#161512" stroke="#161512" stroke-width="0.4"/>
+          </svg>
+        </div>
+      </div>
+      <button class="listen-btn" id="listenBtn" aria-label="Start listening"></button>
+    </div>
+
+    <div class="status-line" id="statusLine">Tap the record to listen</div>
+    <div class="timer" id="timer"></div>
+  </div>
+
+  <div class="result" id="result">
+    <img id="resultImg" src="" alt="">
+    <div class="meta">
+      <p class="title" id="resultTitle"></p>
+      <p class="artist" id="resultArtist"></p>
+    </div>
+  </div>
+
+  <div class="error" id="error"></div>
+
+  <div class="history">
+    <h2>Your recent finds</h2>
+    <ul id="historyList"></ul>
+    <p class="history-empty" id="historyEmpty">Nothing yet — songs you find will show up here.</p>
+  </div>
+
+</div>
+
+<script>
+  // ---------- API key handling (stored in memory only, per session) ----------
+  let API_KEY = '';
+
+  const keypanel   = document.getElementById('keypanel');
+  const keystatus  = document.getElementById('keystatus');
+  const apikeyInput= document.getElementById('apikey');
+
+  document.getElementById('savekey').addEventListener('click', () => {
+    const val = apikeyInput.value.trim();
+    if(!val){ return; }
+    API_KEY = val;
+    keypanel.classList.add('saved');
+    keystatus.classList.add('show');
+  });
+
+  document.getElementById('changekey').addEventListener('click', () => {
+    keypanel.classList.remove('saved');
+    keystatus.classList.remove('show');
+  });
+
+  // ---------- recording + identification ----------
+  const listenBtn   = document.getElementById('listenBtn');
+  const disc        = document.getElementById('disc');
+  const statusLine  = document.getElementById('statusLine');
+  const timerEl     = document.getElementById('timer');
+  const resultBox   = document.getElementById('result');
+  const resultImg   = document.getElementById('resultImg');
+  const resultTitle = document.getElementById('resultTitle');
+  const resultArtist= document.getElementById('resultArtist');
+  const errorBox    = document.getElementById('error');
+  const historyList = document.getElementById('historyList');
+  const historyEmpty= document.getElementById('historyEmpty');
+
+  const RECORD_SECONDS = 6;
+  let mediaRecorder, audioChunks = [], recording = false;
+  let history = [];
+
+  listenBtn.addEventListener('click', startListening);
+
+  async function startListening(){
+    if(recording) return;
+
+    if(!API_KEY){
+      showError('Add your access key above first.');
+      return;
+    }
+
+    hideError();
+    resultBox.classList.remove('show');
+
+    let stream;
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }catch(err){
+      showError("Couldn't access your microphone. Check your browser's mic permissions.");
+      return;
+    }
+
+    recording = true;
+    listenBtn.disabled = true;
+    disc.classList.add('spinning');
+    statusLine.textContent = 'Listening…';
+
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(track => track.stop());
+      disc.classList.remove('spinning');
+      statusLine.textContent = 'Identifying…';
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      await identifySong(audioBlob);
+      recording = false;
+      listenBtn.disabled = false;
+      statusLine.textContent = 'Tap the record to listen';
+      timerEl.textContent = '';
+    };
+
+    mediaRecorder.start();
+
+    let secondsLeft = RECORD_SECONDS;
+    timerEl.textContent = secondsLeft + 's';
+    const countdown = setInterval(() => {
+      secondsLeft -= 1;
+      timerEl.textContent = secondsLeft > 0 ? secondsLeft + 's' : '';
+      if(secondsLeft <= 0){
+        clearInterval(countdown);
+      }
+    }, 1000);
+
+    setTimeout(() => {
+      if(mediaRecorder.state !== 'inactive'){
+        mediaRecorder.stop();
+      }
+    }, RECORD_SECONDS * 1000);
+  }
+
+  async function identifySong(audioBlob){
+    const formData = new FormData();
+    formData.append('api_token', API_KEY);
+    formData.append('file', audioBlob, 'clip.webm');
+    formData.append('return', 'apple_music,spotify');
+
+    try{
+      const response = await fetch('https://api.audd.io/', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await response.json();
+
+      if(data.status === 'error'){
+        showError(data.error && data.error.error_message ? data.error.error_message : 'Something went wrong identifying that clip.');
+        return;
+      }
+
+      if(!data.result){
+        showError("Couldn't recognize that one. Try getting closer to the speaker and reducing background noise.");
+        return;
+      }
+
+      showResult(data.result);
+    }catch(err){
+      showError('Network error while searching. Check your connection and try again.');
+    }
+  }
+
+  function showResult(track){
+    const title  = track.title || 'Unknown title';
+    const artist = track.artist || 'Unknown artist';
+    let artwork = '';
+
+    if(track.apple_music && track.apple_music.artwork && track.apple_music.artwork.url){
+      artwork = track.apple_music.artwork.url.replace('{w}','200').replace('{h}','200');
+    }else if(track.spotify && track.spotify.album && track.spotify.album.images && track.spotify.album.images[0]){
+      artwork = track.spotify.album.images[0].url;
+    }
+
+    resultTitle.textContent = title;
+    resultArtist.textContent = artist;
+    resultImg.src = artwork || '';
+    resultImg.style.display = artwork ? 'block' : 'none';
+    resultBox.classList.add('show');
+
+    history.unshift({ title, artist });
+    if(history.length > 8) history.pop();
+    renderHistory();
+  }
+
+  function renderHistory(){
+    historyList.innerHTML = '';
+    if(history.length === 0){
+      historyEmpty.style.display = 'block';
+      return;
+    }
+    historyEmpty.style.display = 'none';
+    history.forEach(item => {
+      const li = document.createElement('li');
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = item.title;
+      const artistSpan = document.createElement('span');
+      artistSpan.textContent = item.artist;
+      li.appendChild(titleSpan);
+      li.appendChild(artistSpan);
+      historyList.appendChild(li);
+    });
+  }
+
+  function showError(msg){
+    errorBox.textContent = msg;
+    errorBox.classList.add('show');
+  }
+  function hideError(){
+    errorBox.classList.remove('show');
+  }
+</script>
+
+</body>
+</html>
